@@ -1,15 +1,26 @@
 import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  proto,
   type WAMessage,
   type WASocket,
+  type AnyMessageContent,
 } from '@whiskeysockets/baileys'
 import qrCode from 'qrcode-terminal'
 import pino from 'pino'
 
+export interface MyMsg {
+  chatId: string
+  sender: string
+  isMe: boolean
+  txt: string
+  quote: string
+}
+
 export class WhatsApp {
   path = 'data/WhatsApp'
-  sock: WASocket | undefined
+  sock: WASocket
+  myId: string
 
   async connect() {
     const { state, saveCreds } = await useMultiFileAuthState(this.path)
@@ -19,19 +30,52 @@ export class WhatsApp {
     sock.ev.on('connection.update', (x) => {
       if (x.qr) qrCode.generate(x.qr, { small: true })
       if (x.connection == 'close') this.connect()
-      else if (x.connection == 'open') console.log('WhatsApp connected')
+      else if (x.connection == 'open') {
+        console.log('WhatsApp connected')
+        this.myId = sock.user.id.split(':')[0] + '@s.whatsapp.net'
+        this.send(this.myId, { text: '⚠️ Bot connected' })
+      }
     })
     sock.ev.on('creds.update', saveCreds)
     sock.ev.on('messages.upsert', async (x) => {
       if (x.type == 'notify') {
         for (const m of x.messages) {
-          await this.handleMsg(m)
+          await this._handleMsg(m)
         }
       }
     })
   }
 
-  async handleMsg(m: WAMessage) {
+  async _handleMsg(m: WAMessage) {
     console.log(m)
+    const m2 = m.message
+    if (!m2) return
+    const chatId = m.key.remoteJid
+    const sender = m.pushName
+    const isMe = m.key.fromMe
+    const txt = this._getTxt(m2)
+    const quote = this._getTxt(
+      m2.extendedTextMessage?.contextInfo?.quotedMessage,
+    )
+    const m3 = { chatId, sender, isMe, txt, quote }
+    await this.handleMsg(m3)
+  }
+
+  _getTxt(m: proto.IMessage) {
+    if (!m) return
+    return (
+      m.conversation ||
+      m.extendedTextMessage?.text ||
+      m.imageMessage?.caption ||
+      m.videoMessage?.caption
+    )
+  }
+
+  async handleMsg(m: MyMsg) {
+    console.log(m)
+  }
+
+  async send(chatId: string, data: AnyMessageContent) {
+    await this.sock.sendMessage(chatId, data)
   }
 }
