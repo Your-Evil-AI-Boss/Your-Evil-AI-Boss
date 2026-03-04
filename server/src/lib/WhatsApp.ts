@@ -39,15 +39,12 @@ export class WhatsApp {
     sock.ev.on('creds.update', saveCreds)
     sock.ev.on('messages.upsert', async (x) => {
       if (x.type == 'notify') {
-        for (const m of x.messages) {
-          await this._handleMsg(m)
-        }
+        x.messages.forEach((m) => this._handleMsg(m))
       }
     })
   }
 
   async _handleMsg(m: WAMessage) {
-    console.log(m)
     const m2 = m.message
     if (!m2) return
     const chatId = m.key.remoteJid
