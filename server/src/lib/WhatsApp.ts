@@ -12,9 +12,9 @@ import pino from 'pino'
 export interface MyMsg {
   chatId: string
   sender: string
-  isMe: boolean
-  txt: string
-  quote: string
+  //isMe?: boolean
+  txt?: string
+  quote?: string
 }
 
 export class WhatsApp {
@@ -32,7 +32,7 @@ export class WhatsApp {
       if (x.connection == 'close') this.connect()
       else if (x.connection == 'open') {
         console.log('WhatsApp connected')
-        this.myId = sock.user.id.split(':')[0] + '@s.whatsapp.net'
+        this.myId = this.toId(sock.user.id.split(':')[0])
         this.send(this.myId, { text: '⚠️ Bot connected' })
       }
     })
@@ -47,7 +47,7 @@ export class WhatsApp {
   async _handleMsg(m: WAMessage) {
     const m2 = m.message
     if (!m2) return
-    const chatId = m.key.remoteJid
+    const chatId = m.key.remoteJidAlt
     const sender = m.pushName
     const isMe = m.key.fromMe
     const txt = this._getTxt(m2)
@@ -70,9 +70,14 @@ export class WhatsApp {
 
   async handleMsg(m: MyMsg) {
     console.log(m)
+    return {}
   }
 
   async send(chatId: string, data: AnyMessageContent) {
     await this.sock.sendMessage(chatId, data)
+  }
+
+  toId(phone: string) {
+    return phone.replace(/\D/g, '') + '@s.whatsapp.net'
   }
 }
